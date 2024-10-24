@@ -17,6 +17,11 @@ app.get('/', async (req, res) => {
     res.render('articles/index', { articles: articles})
 })
 
+app.get("/api", async (req, res) => {
+    const articles = await Articles.find().sort({ createdAt: "desc"})
+    res.json(articles)
+})
+
 app.use('/articles',articleRouter)
 
 app.listen(5001)
