@@ -1,9 +1,10 @@
-const mongoose = require('mongoose');
-const { marked } = require('marked');
-const slugify = require('slugify')
-const createDomPurifier = require('dompurify')
-const { JSDOM } = require('jsdom')
-const dompurify = createDomPurifier(new JSDOM().window)
+import mongoose from 'mongoose';
+import { marked } from 'marked';
+import slugify from 'slugify';
+import createDomPurifier from 'dompurify';
+import { JSDOM } from 'jsdom';
+
+const dompurify = createDomPurifier(new JSDOM().window);
 
 const articleSchema = new mongoose.Schema({
     title: {
@@ -24,24 +25,12 @@ const articleSchema = new mongoose.Schema({
     slug: {
         type: String,
         required: true,
-        unique: true
+        unique: true,
     },
     sanitizedHtml: {
         type: String,
-        required: true
-    }
+        required: true,
+    },
 });
 
-articleSchema.pre('validate', function(next) {
-    if (this.title){
-        this.slug = slugify(this.title, {lower: true, strict: true})
-    }
-
-    if (this.markdown) {
-        this.sanitizedHtml = dompurify.sanitize(marked(this.markdown))
-    }
-
-    next()
-})
-
-module.exports = mongoose.model('Article', articleSchema);
+export default mongoose.model('Article', articleSchema);
