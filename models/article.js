@@ -1,10 +1,4 @@
 import mongoose from 'mongoose';
-import { marked } from 'marked';
-import slugify from 'slugify';
-import createDomPurifier from 'dompurify';
-import { JSDOM } from 'jsdom';
-
-const dompurify = createDomPurifier(new JSDOM().window);
 
 const articleSchema = new mongoose.Schema({
     title: {
@@ -29,7 +23,9 @@ const articleSchema = new mongoose.Schema({
     },
     sanitizedHtml: {
         type: String,
-        required: true,
+    },
+    imagePath: {
+        type: String,
     },
 });
 

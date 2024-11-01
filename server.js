@@ -6,15 +6,42 @@ import User from './models/user.js';
 import methodOverride from 'method-override';
 import bcrypt from 'bcrypt';
 import jwt from 'jsonwebtoken';
+import multer from 'multer';
+import { fileURLToPath } from 'url';
+import { dirname, join } from 'path';
+import slugify from 'slugify';
+import createDomPurifier from 'dompurify';
+import { JSDOM } from 'jsdom';
+import { marked } from 'marked';
 
 const app = express();
 
-mongoose.connect('mongodb://localhost:27017/blog', {});
+// Get the directory name of the current module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+app.use('/uploads', express.static(join(__dirname, 'uploads')));
+const dompurify = createDomPurifier(new JSDOM().window);
+
+mongoose.connect('mongodb://localhost:27017/blog', {
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+});
 
 app.set('view engine', 'ejs');
 app.use(express.urlencoded({ extended: false }));
 app.use(methodOverride('_method'));
 app.use(express.json());
+
+// Configure multer storage for file uploads
+const storage = multer.diskStorage({
+  destination: (req, file, cb) => {
+    cb(null, 'uploads'); // Set upload directory
+  },
+  filename: (req, file, cb) => {
+    cb(null, `${Date.now()}-${file.originalname}`); // Unique filename
+  }
+});
+const upload = multer({ storage });
 
 app.get('/', async (req, res) => {
   const articles = await Article.find().sort({ createdAt: 'desc' });
@@ -22,11 +49,15 @@ app.get('/', async (req, res) => {
 });
 
 app.get('/api', async (req, res) => {
-  const articles = await Article.find().sort({ createdAt: 'desc' });
-  res.json(articles);
+  try {
+    const articles = await Article.find().sort({ createdAt: 'desc' });
+    res.json(articles);
+  } catch (error) {
+    res.status(500).json({ error: error.message });
+  }
 });
 
-app.post('/api/blogs', async (req, res) => {
+app.post('/api/blogs', upload.single('file'), async (req, res) => {
   try {
     const { title, description, markdown } = req.body;
     const article = new Article({
@@ -34,10 +65,15 @@ app.post('/api/blogs', async (req, res) => {
       description,
       markdown,
       createdAt: new Date(),
+      imagePath: req.file ? req.file.path : null,
+      slug: slugify(title, { lower: true, strict: true }),
+      sanitizedHtml: dompurify.sanitize(marked(markdown)),
     });
+
     const savedArticle = await article.save();
     res.status(201).json(savedArticle);
   } catch (error) {
+    console.log('Error:', error);
     res.status(500).json({ error: error.message });
   }
 });
@@ -61,18 +97,24 @@ app.get('/api/edit/:id', async (req, res) => {
   }
 });
 
-app.put('/api/edit/:id', async (req, res) => {
+app.put('/api/edit/:id', upload.single('file'), async (req, res) => {
   try {
     const { id } = req.params;
     const { title, description, markdown } = req.body;
+
     if (!title || !markdown) {
       return res.status(400).json({ error: 'Title and Markdown are required.' });
     }
-    const updatedArticle = await Article.findByIdAndUpdate(
-      id,
-      { title, description, markdown },
-      { new: true }
-    );
+
+    // Prepare the update data
+    const updateData = { title, description, markdown };
+
+    // Handle the uploaded file
+    if (req.file) {
+      updateData.imagePath = req.file.path; // Save the new image path
+    }
+
+    const updatedArticle = await Article.findByIdAndUpdate(id, updateData, { new: true });
     if (!updatedArticle) {
       return res.status(404).json({ error: 'Article not found' });
     }

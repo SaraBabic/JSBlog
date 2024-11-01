@@ -19,6 +19,9 @@
     <div>
       <%- article?.sanitizedHtml %>
     </div>
+    <% if (article.imagePath) { %>
+      <img src="/<%= article?.imagePath %>" alt="<%= article?.title %>" class="img-fluid">
+  <% } %>
   </div>
 </body>
 </html>
