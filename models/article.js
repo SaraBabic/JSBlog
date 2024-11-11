@@ -1,22 +1,18 @@
 import mongoose from 'mongoose';
 
 const sectionSchema = new mongoose.Schema({
-    text: {
+    type: {
         type: String,
+        enum: ['text', 'image'],
+        required: true,
     },
-    imagePath: {
+    content: {
         type: String,
+        required: true,
     },
     order: {
         type: Number,
         required: true,
-    },
-    alignment: {
-        type: String,
-        enum: ['left', 'center', 'right'],
-    },
-    style: {
-        type: String,
     },
 });
 
@@ -24,6 +20,9 @@ const articleSchema = new mongoose.Schema({
     title: {
         type: String,
         required: true,
+    },
+    imagePath: {
+        type: String,
     },
     description: {
         type: String,

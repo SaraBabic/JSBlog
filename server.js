@@ -16,7 +16,6 @@ import { marked } from 'marked';
 
 const app = express();
 
-// Get the directory name of the current module
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 app.use('/uploads', express.static(join(__dirname, 'uploads')));
@@ -32,13 +31,12 @@ app.use(express.urlencoded({ extended: false }));
 app.use(methodOverride('_method'));
 app.use(express.json());
 
-// Configure multer storage for file uploads
 const storage = multer.diskStorage({
   destination: (req, file, cb) => {
-    cb(null, 'uploads'); // Set upload directory
+    cb(null, 'uploads');
   },
   filename: (req, file, cb) => {
-    cb(null, `${Date.now()}-${file.originalname}`); // Unique filename
+    cb(null, `${Date.now()}-${file.originalname}`);
   }
 });
 const upload = multer({ storage });
@@ -57,26 +55,49 @@ app.get('/api', async (req, res) => {
   }
 });
 
-app.post('/api/blogs', upload.single('file'), async (req, res) => {
-  try {
-    const { title, description, markdown } = req.body;
-    const article = new Article({
-      title,
-      description,
-      markdown,
-      createdAt: new Date(),
-      imagePath: req.file ? req.file.path : null,
-      slug: slugify(title, { lower: true, strict: true }),
-      sanitizedHtml: dompurify.sanitize(marked(markdown)),
-    });
+app.post(
+  '/api/blogs',
+  upload.fields([{ name: 'file', maxCount: 1 }, { name: 'sections', maxCount: 10 }]),
+  async (req, res) => {
+    try {
+      const { title, description, markdown, sections } = req.body;
 
-    const savedArticle = await article.save();
-    res.status(201).json(savedArticle);
-  } catch (error) {
-    console.log('Error:', error);
-    res.status(500).json({ error: error.message });
+      const article = new Article({
+        title,
+        description,
+        markdown,
+        createdAt: new Date(),
+        imagePath: req.files['file'] ? req.files['file'][0].path : null,
+        slug: slugify(title, { lower: true, strict: true }),
+        sanitizedHtml: dompurify.sanitize(marked(markdown)),
+        sections: [],
+      });
+
+      if (sections && Array.isArray(sections)) {
+        sections.forEach((section, index) => {
+          const sectionData = {
+            type: section.type,
+            content:
+              section.type === 'text'
+                ? section.content
+                : req.files['sections'] && req.files['sections'][index]
+                ? req.files['sections'][index].path
+                : '',
+            order: index + 1,
+          };
+          article.sections.push(sectionData);
+        });
+      }
+
+      const savedArticle = await article.save();
+      res.status(201).json(savedArticle);
+    } catch (error) {
+      console.log('Error:', error);
+      res.status(500).json({ error: error.message });
+    }
   }
-});
+);
+
 
 app.get('/api/articles/:slug', async (req, res) => {
   const article = await Article.findOne({ slug: req.params.slug });
