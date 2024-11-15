@@ -78,21 +78,23 @@ app.post(
       });
 
       (req.body.sections || []).forEach((section, index) => {
-        if (section.content) {
-          const sectionData = {
+        const sectionFile = req.files[`sections[${index}][content]`];
+        const sectionContent =
+          section.type === "text"
+            ? section.content
+            : sectionFile && sectionFile[0]
+            ? sectionFile[0].path
+            : null;
+
+        if (sectionContent) {
+          article.sections.push({
             type: section.type,
-            content:
-              section.type === "text"
-                ? section.content
-                : req.files[`sections[${index}][content]`]
-                ? req.files[`sections[${index}][content]`][0].path
-                : "",
+            content: sectionContent,
             order: index + 1,
-          };
-          article.sections.push(sectionData);
+          });
         }
       });
-
+      console.log("Error:", article);
       const savedArticle = await article.save();
       res.status(201).json(savedArticle);
     } catch (error) {
